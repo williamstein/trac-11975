@@ -1,0 +1,211 @@
+# HG changeset patch
+# User William Stein <wstein@gmail.com>
+# Date 1326928703 28800
+# Node ID cbbc93df6397999ef159660ccd97c679f7bd073a
+# Parent  03af62632134c271ed4e91cd7975c2f5519308af
+trac 11975: part 3 -- Chow-Heegner points
+
+diff --git a/sage/schemes/elliptic_curves/chow_heegner.py b/sage/schemes/elliptic_curves/chow_heegner.py
+--- a/sage/schemes/elliptic_curves/chow_heegner.py
++++ b/sage/schemes/elliptic_curves/chow_heegner.py
+@@ -237,12 +237,12 @@
+         (0.384615384615 + 2.92307692308*I, [-3  7]
+         [-1  2])
+     """
++    if isinstance(z, complex):
++        z = CDF(z)
++
+     if isinstance(z, (float, int, long)) or z.imag() <= 0:
+         raise ValueError, "z must be in the upper half plane"
+ 
+-    if isinstance(z, complex):
+-        z = CDF(z)
+-
+     if eps is None:
+         # set default value of eps if it is not given
+         eps = RR(2)**(-z.parent().prec())
+@@ -530,10 +530,12 @@
+         
+     def __cmp__(self, right):
+         """
+-        Compare self and right, which must have the same level N and
+-        compare prec.  The points are considered equal if the two
+-        points are equivalent modulo the action of Gamma0(N) to the
+-        given precision.  If not equivalent, compares underlying
++        Compare self and right.  If they have different levels, then
++        the one with smaller level is considered smaller.  The points
++        are considered equal if the two points are equivalent modulo
++        the action of Gamma0(N) to the minimum of the precisions of
++        self and right.  If the levels are the same, but the points
++        are not equivalent, this function compares the underlying
+         floating point representatives as complex numbers.
+         
+         EXAMPLES::
+@@ -544,12 +546,21 @@
+             True
+             sage: z = CDF(1,1); x=X0NPoint(z,11,30); y=X0NPoint(z/2,11,30)
+             sage: x==y
+-            False        
++            False
++
++        Points with different levels::
++
++            sage: z = CDF(1,1); x=X0NPoint(z,5,30); y=X0NPoint(z,10,30)
++            sage: x < y
++            True
++            sage: y < x
++            False            
+         """
+-        assert self._N == right._N and self._prec == right._prec
++        c = cmp(self._N, right._N)
++        if c: return c
+         if self._N == 1:
+             return cmp(self._sl2z_rep(), right.sl2z_rep())
+-        if is_gamma0N_equivalent(self._z, right._z, self._N, self._prec):
++        if is_gamma0N_equivalent(self._z, right._z, self._N, min(self._prec, right._prec)):
+             return 0
+         return cmp(self._z, right._z)
+ 
+@@ -587,8 +598,8 @@
+         
+         INPUT:
+ 
+-        - `q` -- prime power that exactly divides the level, or
+-          None, in which q is the level
++        - `q` -- integer that exactly divides the level, or
++          None, in which case q defaults to the level.
+          
+         OUTPUT:
+ 
+@@ -614,7 +625,18 @@
+             sage: x.atkin_lehner(5)
+             Traceback (most recent call last):
+             ...
+-            ValueError: q must divide N        
++            ValueError: q must divide N
++
++        The parameter q need not be a prime power::
++        
++            sage: z = CDF(1,1)         
++            sage: P = X0NPoint(z,90,30) # N = 90 = 10*9
++            sage: P.atkin_lehner(10)                 
++            [0.11049724 + 0.00055248619*I]
++            sage: P.atkin_lehner(10).atkin_lehner(10)
++            [0.10554020 + 0.000013888696*I]
++            sage: P.atkin_lehner(10).atkin_lehner(10) == P
++            True            
+         """
+         if q is None:
+             # Main involution
+@@ -1016,11 +1038,18 @@
+ 
+     def close_points(self, search_bound, eps=1e-3):
+         """
+-        Return points close to self, sorted by distance (with closed point first).
++        Return points close to self, sorted by distance (with closed
++        point first).
++
++        The elliptic curve must have rank 0 or 1, or a
++        NotImplementedError is raised.
+         
+         INPUT:
+ 
+-        - ``search_bound`` --
++        - ``search_bound`` -- we search through points of the form n*P + t,
++          where P is a generator for the Mordell-Weil, t is any torsion point,
++          and -search_bound<=n<=search_bound.
++          
+         - ``eps`` -- (default: 1e-3)
+ 
+         OUTPUT:
+@@ -1041,19 +1070,34 @@
+             sage: Q.close_points(10, eps=12.5)
+             [(6 : 14 : 1), (2 : 2 : 1)]
+             sage: Q.close_points(10, eps=13.5)
+-            [(6 : 14 : 1), (2 : 2 : 1), (0 : 1 : 0)]            
++            [(6 : 14 : 1), (2 : 2 : 1), (0 : 1 : 0)]
++
++        A current implementation limitation is that the curve must
++        have rank at most 1::
++
++            sage: E = EllipticCurve('389a'); P = E.change_ring(RDF)([0,0])
++            sage: P
++            (0.0 : 0.0 : 1.0)
++            sage: from sage.schemes.elliptic_curves.chow_heegner import NumericalPoint
++            sage: z = NumericalPoint(P, 1e-5)
++            sage: z.close_points(10)
++            Traceback (most recent call last):
++            ...
++            NotImplementedError: curve must have rank 0 or 1        
+         """
+         E = self.rational_curve()
+         g = E.gens()
+         if len(g) == 0:
+             P = E(0)
+             search_bound=0
++        elif len(g) == 1:
++            P = g[0]
+         else:
+-            P = g[0]
++            raise NotImplementedError, "curve must have rank 0 or 1"
+         T = E.torsion_points()
+         v = []
+-        for n in range(-search_bound, search_bound+1):
+-            Q = n*P
++        from sage.groups.generic import multiples
++        for Q in multiples(P, 2*search_bound+1, -search_bound*P):
+             for t in T:
+                 R = Q + t
+                 if abs(R[0] - self[0]) < eps and abs(R[1] - self[1]) < eps:
+@@ -1221,7 +1265,7 @@
+ 
+             sage: c = EllipticCurve('57b').chow_heegner_point(EllipticCurve('57a')); c
+             Chow-Heegner point on 57b1 associated to 57a1
+-            sage: c.point_exact()
++            sage: c.numerical_approx().identify()
+             (0 : 1 : 0)        
+         """
+         if max(abs(self[0]),abs(self[1])) >= infinity or self._P == 0:
+@@ -1341,8 +1385,8 @@
+         sage: from sage.schemes.elliptic_curves.chow_heegner import label
+         sage: label(EllipticCurve('11a3'))
+         '11a3'
+-        sage: label(EllipticCurve([0,2011]))
+-        'Elliptic Curve defined by y^2 = x^3 + 2011 over Rational Field'            
++        sage: label(EllipticCurve([0,2012]))
++        'Elliptic Curve defined by y^2 = x^3 + 2012 over Rational Field'        
+     """
+     try:
+         return E.cremona_label()
+@@ -1373,10 +1417,18 @@
+         sage: len(C)
+         8
+         sage: [check_optimal(X) for X in C]
+-        [None, None, None, None, None, None, None, None]        
++        [None, None, None, None, None, None, None, None]
++
++        sage: check_optimal(EllipticCurve('990h3'))
++        True
++        sage: check_optimal(EllipticCurve('990h1'))
++        False
+     """
+     try:
+-        if not E.cremona_label().endswith('1'):
++        lbl = E.cremona_label()
++        if lbl.startswith('990h'):
++            return lbl.endswith('3')
++        if not lbl.endswith('1'):
+             raise ValueError, "curve must be optimal"
+     except RuntimeError:
+         pass
+@@ -1466,8 +1518,8 @@
+ 
+     def elliptic_curve(self):
+         """
+-        Return the elliptic curve that this is the modular
+-        parametrization of.
++        Return the elliptic curve of which this is the modular
++        parametrization.
+         
+         OUTPUT:
+         

@@ -1,0 +1,989 @@
+# HG changeset patch
+# User William Stein <wstein@gmail.com>
+# Date 1370129472 25200
+# Node ID 03af62632134c271ed4e91cd7975c2f5519308af
+# Parent  0371489299c69a16b4442544febcfeca4f625b99
+11975 (part 2)
+
+diff --git a/doc/en/reference/plane_curves/index.rst b/doc/en/reference/plane_curves/index.rst
+--- a/doc/en/reference/plane_curves/index.rst
++++ b/doc/en/reference/plane_curves/index.rst
+@@ -42,7 +42,8 @@
+    sage/schemes/elliptic_curves/sha_tate
+    sage/schemes/elliptic_curves/padics
+    sage/schemes/elliptic_curves/cm
+-
++   sage/schemes/elliptic_curves/chow_heegner                                                                                                                 
++   sage/schemes/elliptic_curves/chow_heegner_fast
+ 
+ 
+ 
+diff --git a/sage/schemes/elliptic_curves/chow_heegner.py b/sage/schemes/elliptic_curves/chow_heegner.py
+--- a/sage/schemes/elliptic_curves/chow_heegner.py
++++ b/sage/schemes/elliptic_curves/chow_heegner.py
+@@ -21,7 +21,8 @@
+ the algorithm, see http://wstein.org/papers/chow_heegner/.
+ 
+ AUTHORS:
+-    - William Stein (November 2011)
++
++- William Stein (November 2011, January 2012)
+ 
+ EXAMPLES::
+ 
+@@ -58,35 +59,47 @@
+ # Gamma0(N) equivalence of points in the upper half plane
+ ######################################################################
+ 
+-def sl2z_rep_in_fundom(z):
++def _slz2_rep_in_fundom_helper(z):
+     """
+-    Return element of the standard fundamental domain for SL2Z
+-    equivalent to z and a transformation in SL2Z mapping z to that
+-    element.
++    Return element z2 of the standard fundamental domain for SL2Z
++    equivalent to z and a transformation g in SL2Z that maps z to z2,
++    modulo rounding errors.  For precision guarantees, see the
++    function slz2_rep_in_fundom below.
+ 
+     INPUT:
+-        - `z` -- floating point complex number in the upper half plane
++    
++    - `z` -- floating point complex number in the upper half plane
+ 
+     OUTPUT:
+-        - element of upper half plane
+-        - 2x2 integer matrix of determinant 1
++    
++    - element of upper half plane
++    - 2x2 integer matrix of determinant 1
+ 
+-    EXAMPLES::
++    EXAMPLES:
+ 
+-        sage: from sage.schemes.elliptic_curves.chow_heegner import sl2z_rep_in_fundom
+-        sage: z = CDF(2.17,.19)
+-        sage: w, g = sl2z_rep_in_fundom(z)     
+-        sage: w
+-        0.384615384615 + 2.92307692308*I
+-        sage: g
+-        [-3  7]
+-        [-1  2]
+-        sage: (g[0,0]*z + g[0,1])/(g[1,0]*z + g[1,1])
+-        0.384615384615 + 2.92307692308*I
++    This helper function just runs the raw algorithm, so can yield
++    results that are subject to substantial rounding errors::
++
++        sage: from sage.schemes.elliptic_curves.chow_heegner import _slz2_rep_in_fundom_helper
++        sage: z = CDF(110.1, 1e-10)   
++        sage: zz,g = _slz2_rep_in_fundom_helper(z)
++        sage: zz
++        0.341867712408 + 99999999.6769*I
++ 
++    The value of zz above is wrong, as we see applying the raw
++    algorithm but to higher precision using an interval (so that we
++    are aware of the influence of rounding errors)::
++
++        sage: zz,g = _slz2_rep_in_fundom_helper(ComplexIntervalField(100)(z))
++        sage: zz
++        0.241867713702? + 9.99999996768825706223026?e7*I
++
++    The sl2z_rep_in_fundom function takes care of using intervals
++    automatically, and to sufficient precision, but may be much
++    slower.
+     """
+-    # The standard algorithm to do this is to replace z by z-n
+-    # and z by -1/z until |Re(z)|<=1/2 and |z|>=1.
+-
++    # We use the standard algorithm: replace z by z-n and z by -1/z
++    # until |Re(z)|<=1/2 and |z|>=1.
+     from sage.modular.all import SL2Z
+     gamma = SL2Z(1)
+     S, T = SL2Z.gens()
+@@ -102,9 +115,7 @@
+             # n - 1/2 <= t < = 1/2+n
+             # n <= t + 1/2 <= n + 1, so n = floor(t+1/2)
+             n = (t + half).floor()  # avoid rounding error with 0.5
+-            #print "t = ", t, "  n = ", n
+             z -= n
+-            #print "subtract", n
+             if hasattr(n, 'center'):
+                 k = round(n.center())
+             else:
+@@ -112,10 +123,154 @@
+             gamma *= T**k
+         if abs(z) < 1:
+             change = True
+-            #print "invert"
+             z = -1/z
+             gamma *= S
+     return z, gamma**(-1)
++
++def sl2z_rep_in_fundom(z, eps=None):
++    """
++    Return element z2 of the standard fundamental domain for SL2Z
++    equivalent to z and a transformation g in SL2Z.  The transformation
++    g, which is an exact element of SL2Z, will take any sufficiently
++    high precision approximation of z to z2 with an error of at most
++    eps.
++
++    Since this function uses interval arithmetic to be careful about
++    precision, it is slower than _slz2_rep_in_fundom_helper, which
++    makes no attempt to deal with precision issues.
++
++    INPUT:
++    
++    - `z` -- floating point complex number in the upper half plane
++    - `eps` -- a small positive real or None; if None, uses 2**(-prec),
++      where prec is the number of bits of precision of z.
++
++    OUTPUT:
++    
++    - element of upper half plane
++    - 2x2 integer matrix of determinant 1
++
++    EXAMPLES::
++
++        sage: from sage.schemes.elliptic_curves.chow_heegner import sl2z_rep_in_fundom
++        sage: z = CDF(2.17,.19)
++        sage: w, g = sl2z_rep_in_fundom(z)     
++        sage: w
++        0.384615384615 + 2.92307692308*I
++        sage: g
++        [-3  7]
++        [-1  2]
++        sage: g.acton(z)
++        0.384615384615 + 2.92307692308*I
++
++    An example in which the imaginary part is small, which leads to
++    rounding issues::
++
++        sage: z = CDF(110.1, 1e-10)   
++        sage: zz, g = sl2z_rep_in_fundom(z)
++        sage: zz
++        0.241867713702 + 99999999.6769*I
++        sage: g 
++        [ -56841 6258194]
++        [     10   -1101]
++        sage: g.acton(z)         # far from zz due to rounding during action
++        -5684.1 + 99999999.6275*I
++        sage: g.acton(CIF(z))    # indeed to double precision, everything lost
++        0.?e5 + 1.0000000?e8*I
++        sage: g.acton(ComplexField(100)(z))   # get correct zz above with higher prec
++        0.24186771370190053192231958133 + 9.9999999676882570622302579775e7*I
++
++    Here is a similer, but much more extreme, example::
++
++        sage: z = CC(110.1 + 1e-100*I)
++        sage: zz, g = sl2z_rep_in_fundom(z); zz
++        -0.499999999999858 + 8.07793566946316e72*I
++        sage: g.acton(z)
++        -0.499999999999858
++        sage: g.acton(ComplexField(10^3)(z))
++        -0.49999999999985...000 + 8.07793566946...e72*I
++
++    TESTS:
++
++    The value of eps must be positive and small or a ValueError
++    exception is raised::
++
++        sage: from sage.schemes.elliptic_curves.chow_heegner import *
++        sage: sl2z_rep_in_fundom(CC(1+I), eps=0)   # must be positive
++        Traceback (most recent call last):
++        ...
++        ValueError: eps must be positive
++        sage: sl2z_rep_in_fundom(CC(1+I), eps=-1)  # must be positive
++        Traceback (most recent call last):
++        ...
++        ValueError: eps must be positive
++        sage: sl2z_rep_in_fundom(CC(1+I), eps=1)   # must be small
++        Traceback (most recent call last):
++        ...
++        ValueError: prec (=0) must be >= 2 and <= 9223372036854775807.
++
++    TESTS:
++
++    We require that the input is in the upper half plane::
++
++        sage: from sage.schemes.elliptic_curves.chow_heegner import *
++        sage: sl2z_rep_in_fundom(CC(1,-1))
++        Traceback (most recent call last):
++        ...
++        ValueError: z must be in the upper half plane
++        sage: sl2z_rep_in_fundom(CC(1,-1))
++        Traceback (most recent call last):
++        ...
++        ValueError: z must be in the upper half plane
++        sage: sl2z_rep_in_fundom(float(3))
++        Traceback (most recent call last):
++        ...
++        ValueError: z must be in the upper half plane
++        sage: sl2z_rep_in_fundom(3)
++        Traceback (most recent call last):
++        ...
++        ValueError: z must be in the upper half plane
++
++    The Python complex type is allowed::
++
++        sage: sl2z_rep_in_fundom(complex(2.17,.19))
++        (0.384615384615 + 2.92307692308*I, [-3  7]
++        [-1  2])
++    """
++    if isinstance(z, (float, int, long)) or z.imag() <= 0:
++        raise ValueError, "z must be in the upper half plane"
++
++    if isinstance(z, complex):
++        z = CDF(z)
++
++    if eps is None:
++        # set default value of eps if it is not given
++        eps = RR(2)**(-z.parent().prec())
++    else:
++        # make sure eps is *positive* and in RR.
++        eps = RR(eps)
++        if eps <= 0:
++            raise ValueError, "eps must be positive"
++
++    # To avoid rounding errors, we use interval arithmetic for the
++    # actual calculation (until the precision is sufficient).
++    from sage.rings.complex_interval_field import (
++        is_ComplexIntervalField, ComplexIntervalField)
++
++    # We start with twice the precision to avoid an extra iteration:
++    # the documentation warns that this function may be slow.
++    prec = -2*eps.log(2).ceil()
++    while True:
++        # make the interval version of z to the given precision
++        w = ComplexIntervalField(prec)(z)
++        # run the algorithm on that interval
++        w2, g = _slz2_rep_in_fundom_helper(w)
++        if w2.diameter() <= eps:
++            # There wasn't too much precision loss, so we go with this result.
++            return z.parent()(w2.center()), g
++        else:
++            # Too much precision loss -- try again with twice as many bits.
++            prec *= 2
+         
+ 
+ def canonicalize_sl2z(a, g=None, eps_ratio=2):
+@@ -130,15 +285,17 @@
+     Special case: if g is None, just adjust a, ignoring g.
+ 
+     INPUT:
+-        - a -- element of fundamental domain (so in ComplexField(prec))
+-        - g -- None or element of SL2Z
+-        - eps_ratio -- default 2; used in testing equality of the floating
+-          point number a with 1 and 1/2. See comment in source code. 
++
++    - a -- element of fundamental domain (so in ComplexField(prec))
++    - g -- None or element of SL2Z
++    - eps_ratio -- default 2; used in testing equality of the floating
++      point number a with 1 and 1/2. See comment in source code. 
+ 
+     OUTPUT:
+-        - new a and a matrix g (or None)
+ 
+-    EXAMPLES::
++    - new a and a matrix g (or None)
++
++    EXAMPLES:
+ 
+     When a is on the right edge::
+ 
+@@ -209,12 +366,14 @@
+     2**(-prec).
+     
+     INPUT:
+-        - `z_1`, `z_2` -- floating point complex numbers in the upper
+-          half plane
+-        - ``prec`` -- positive integer (bits of absolute precision)
++
++    - `z_1`, `z_2` -- floating point complex numbers in the upper
++      half plane
++    - ``prec`` -- positive integer (bits of absolute precision)
+     
+     OUTPUT:
+-        - bool
++
++    - bool
+ 
+     EXAMPLES::
+ 
+@@ -225,7 +384,7 @@
+         sage: is_sl2z_equivalent(CDF(5,7), CDF(5,7), 53)
+         True
+ 
+-    Apply an element of SL2Z, and note that precision 53 fails do to
++    Apply an element of SL2Z, and note that precision 53 fails due to
+     rounding errors, though 40 bits works::
+ 
+         sage: z1 = CDF(5,7)
+@@ -260,13 +419,15 @@
+     `\\Gamma_0(N)`` to the given number of bits of precision.
+ 
+     INPUT:
+-        - `z_1`, `z_2` -- floating point complex numbers in the upper
+-          half plane
+-        - `N` -- positive integer  
+-        - ``prec`` -- positive integer (bits of absolute precision)
++
++    - `z_1`, `z_2` -- floating point complex numbers in the upper
++      half plane
++    - `N` -- positive integer  
++    - ``prec`` -- positive integer (bits of absolute precision)
+ 
+     OUTPUT:
+-        - bool
++
++    - bool
+ 
+     EXAMPLES::
+ 
+@@ -294,12 +455,30 @@
+         sage: all(is_gamma0N_equivalent(z1, g.acton(z1), 15, 150) for g in Gamma0(15).gens())
+         True        
+     """
++    # The algorithm we use below was suggested by Samit Dasgupta at a
++    # UC Santa Cruz seminar in 2011.
+     if not is_sl2z_equivalent(z1, z2, prec):
+         # points are not even sl2z-equivalent, so they can't
+         # be Gamma_0(N) equivalent
+         return False
+-    # Now we know the two points are SL2Z-equivalent.
+-    # Next check further if N*z1 is equivalent to N*z2.
++    # Now we know the two points are SL2Z-equivalent, so j(z) takes
++    # the same value on z1 and z2.  The modular function j_N(z)=j(N*z)
++    # on Gamma_0(N) take on the same value on both z1 and z2 if and
++    # only if N*z1 is equivalent to N*z2.
++
++    # It is a classical theorem that j(z) and j_N(z) generate the
++    # field of modular functions for Gamma_0(N), i.e., (via standard
++    # identifications) the field of rational functions on the
++    # algebraic curve X_0(N)/C.  Thus: if two points are equivalent
++    # modulo Gamma_0(N), then j(z) and j_N(z) must take on the same
++    # values on those points; conversely, if j(z) and j_N(z) take the
++    # same values on two points, then every rational function takes
++    # the same values on the image of the two points in X_0(N), which
++    # implies that the points define the same element of X_0(N) (since
++    # a point on a nonsingular algebraic curve is characterized by the
++    # set of functions that vanish at it).
++
++    # Thus: we check whether or not N*z1 is equivalent to N*z2.
+     return is_sl2z_equivalent(N*z1, N*z2, prec)
+ 
+ 
+@@ -318,9 +497,10 @@
+     def __init__(self, z, N, prec):
+         """
+         INPUT:
+-            - `z` -- floating point complex number in the upper half plane
+-            - `N` -- positive integer
+-            - `prec` -- positive integer; bits of precision used in comparisons
++
++        - `z` -- floating point complex number in the upper half plane
++        - `N` -- positive integer
++        - `prec` -- positive integer; bits of precision used in comparisons
+ 
+         EXAMPLES::
+ 
+@@ -406,11 +586,13 @@
+         Return image of this point under the Atkin-Lehner involution W_q.
+         
+         INPUT:
+-            - `q` -- prime power that exactly divides the level, or
+-              None, in which q is the level
++
++        - `q` -- prime power that exactly divides the level, or
++          None, in which q is the level
+          
+         OUTPUT:
+-            - X0NPoint
++
++        - X0NPoint
+         
+         EXAMPLES::
+         
+@@ -474,9 +656,12 @@
+     for any nonzero complex number.
+ 
+     INPUT:
+-        - q -- complex number in unit disk
++
++    - q -- complex number in unit disk
++        
+     OUTPUT:
+-        - complex number in upper half plane
++
++    - complex number in upper half plane
+ 
+     EXAMPLES::
+ 
+@@ -501,9 +686,12 @@
+     for any complex number.
+ 
+     INPUT:
+-        - z -- complex number in upper half plane
++
++    - z -- complex number in upper half plane
++        
+     OUTPUT:
+-        - complex number in unit disk
++
++    - complex number in unit disk
+ 
+     EXAMPLES::
+         
+@@ -585,12 +773,14 @@
+     prec bits of precision.
+ 
+     INPUT:
+-        - `v` -- list of floating point numbers
+-        - ``prec`` -- integer; bits of precision to do comparisons
++
++    - `v` -- list of floating point numbers
++    - ``prec`` -- integer; bits of precision to do comparisons
+ 
+     OUTPUT:
+-        - sorted list of unique elements of v, where unique is defined
+-          as equality in ComplexField(prec)
++
++    - sorted list of unique elements of v, where unique is defined
++      as equality in ComplexField(prec)
+ 
+     EXAMPLES::
+ 
+@@ -634,15 +824,17 @@
+     fast.
+ 
+     INPUT:
+-        - `f` -- polynomial over a floating point complex field.
+-        - `x` -- an approximate root or *list* of approximate roots.
+-        - ``max_iter`` -- positive integer (default: 1000)
+-        - ``max_err`` -- small real (default: 1e-14)
++
++    - `f` -- polynomial over a floating point complex field.
++    - `x` -- an approximate root or *list* of approximate roots.
++    - ``max_iter`` -- positive integer (default: 1000)
++    - ``max_err`` -- small real (default: 1e-14)
+ 
+     OUTPUT:
+-        - list of triples (r, n, err), where r is the root found via n
+-          iterations, where the iteration stopped because the
+-          difference between the n and n-1 value was err < max_err.
++
++    - list of triples (r, n, err), where r is the root found via n
++      iterations, where the iteration stopped because the
++      difference between the n and n-1 value was err < max_err.
+ 
+     EXAMPLES::
+ 
+@@ -783,8 +975,9 @@
+     def __init__(self, P, eps):
+         """
+         INPUT:
+-            - `P` -- actual point on some elliptic curve over a floating point base field
+-            - ``eps`` -- small positive real
++
++        - `P` -- actual point on some elliptic curve over a floating point base field
++        - ``eps`` -- small positive real
+ 
+         EXAMPLES::
+ 
+@@ -826,11 +1019,13 @@
+         Return points close to self, sorted by distance (with closed point first).
+         
+         INPUT:
+-            - ``search_bound`` --
+-            - ``eps`` -- (default: 1e-3)
++
++        - ``search_bound`` --
++        - ``eps`` -- (default: 1e-3)
+ 
+         OUTPUT:
+-            - list
++        
++        - list
+ 
+         EXAMPLES::
+ 
+@@ -870,10 +1065,12 @@
+     def __getitem__(self, i):
+         """
+         INPUT:
+-            - i -- integer (0, 1 or 2)
+ 
++        - i -- integer (0, 1 or 2)
++            
+         OUTPUT:
+-            - floating point number (x,y, or z coordinate)
++
++        - floating point number (x,y, or z coordinate)
+ 
+         EXAMPLES::
+         
+@@ -996,12 +1193,14 @@
+     def identify(self, search=200, eps=1e-5, infinity=1e12):
+         """
+         INPUT:
+-            - ``search`` -- (default: 200)
+-            - ``eps`` - (default: 1e-5)
+-            - ``infinity`` -- (default: 1e12)
++
++        - ``search`` -- (default: 200)
++        - ``eps`` - (default: 1e-5)
++        - ``infinity`` -- (default: 1e12)
+ 
+         OUTPUT:
+-            rational point on elliptic curve
++
++        - rational point on elliptic curve
+ 
+         EXAMPLES::
+ 
+@@ -1049,11 +1248,13 @@
+     least ymin.
+ 
+     INPUT:
+-        - ``ymin`` -- positive real number; minimum y coordinate
+-        - ``prec`` -- positive integer (bits of precision)
++
++    - ``ymin`` -- positive real number; minimum y coordinate
++    - ``prec`` -- positive integer (bits of precision)
+ 
+     OUTPUT:
+-        - integer
++
++    - integer
+ 
+     EXAMPLES::
+ 
+@@ -1093,12 +1294,14 @@
+     `B` polynomial `\sum a_n/n T^n`.
+     
+     INPUT:
+-        - `E` -- elliptic curve over the rational field
+-        - `B` -- a positive integer
+-        - ``base_field`` -- (default: QQ); a field
++
++    - `E` -- elliptic curve over the rational field
++    - `B` -- a positive integer
++    - ``base_field`` -- (default: QQ); a field
+         
+     OUTPUT:
+-        - a polynomial over the base field
++
++    - a polynomial over the base field
+ 
+     EXAMPLES::
+ 
+@@ -1126,9 +1329,12 @@
+     module.
+ 
+     INPUT:
+-        - `E` -- elliptic curve over the rational numbers
++
++    - `E` -- elliptic curve over the rational numbers
++        
+     OUTPUT:
+-        - string
++
++    - string
+ 
+     EXAMPLES::
+     
+@@ -1218,7 +1424,8 @@
+     def __init__(self, E):
+         """
+         INPUT:
+-           - `E` - elliptic curve over QQ assumed to be optimal
++
++        - `E` - elliptic curve over QQ assumed to be optimal
+ 
+         EXAMPLES::
+ 
+@@ -1263,7 +1470,8 @@
+         parametrization of.
+         
+         OUTPUT:
+-            - an elliptic curve over the rational numbers
++        
++        - an elliptic curve over the rational numbers
+ 
+         EXAMPLES::
+ 
+@@ -1279,7 +1487,8 @@
+         Return the degree of this modular parametrization.
+         
+         OUTPUT:
+-            - positive integer
++
++        - positive integer
+ 
+         EXAMPLES::
+ 
+@@ -1306,7 +1515,8 @@
+         all large.
+ 
+         OUTPUT:
+-            - dictionary 
++
++        - dictionary 
+ 
+         EXAMPLES::
+ 
+@@ -1354,7 +1564,8 @@
+         images of cusps.
+         
+         OUTPUT:
+-            - dictionary 
++
++        - dictionary 
+ 
+         EXAMPLES::
+ 
+@@ -1408,10 +1619,12 @@
+         list of such points.
+         
+         INPUT:
+-            - a complex number or list of complex numbers in the upper half plane
++
++        - a complex number or list of complex numbers in the upper half plane
+ 
+         OUTPUT:
+-            - complex number or list of complex numbers
++
++        - complex number or list of complex numbers
+ 
+         EXAMPLES::
+ 
+@@ -1465,20 +1678,22 @@
+         Find points in upper half plane over double precision z.
+         
+         INPUT:
+-            - `z` -- (default: 0.1); floating point number that
+-              defines element of period lattice. WARNING: function wil
+-              be dramatically slower if z has nonzero imaginary part.
+-            - ``min_imag`` -- (default: 1e-4) positive real number; we
+-              only find points in the upper half plane with imaginary
+-              part at least this
+-            - ``max_iter`` -- maximum number of iterations used in
+-              newton calls
+-            - ``deg1`` -- (default: 500) degree used for first double
+-              precision root finding; if too small then some points
+-              will be missed.  Reasonable values are between 100 and 3000.
++
++        - `z` -- (default: 0.1); floating point number that
++          defines element of period lattice. WARNING: function wil
++          be dramatically slower if z has nonzero imaginary part.
++        - ``min_imag`` -- (default: 1e-4) positive real number; we
++          only find points in the upper half plane with imaginary
++          part at least this
++        - ``max_iter`` -- maximum number of iterations used in
++          newton calls
++        - ``deg1`` -- (default: 500) degree used for first double
++          precision root finding; if too small then some points
++          will be missed.  Reasonable values are between 100 and 3000.
+ 
+         OUTPUT:
+-            - list of CDF elements
++
++        - list of CDF elements
+ 
+         EXAMPLES::
+ 
+@@ -1539,27 +1754,29 @@
+         that representatives for all such points have been returned.
+ 
+         INPUT:
+-            - `z` -- (default: 0.1); floating point number that
+-              defines element of period lattice. WARNING: Function wil
+-              be dramatically slower if z has nonzero imaginary part.
+-            - ``min_imag`` -- (default: 1e-4) positive real number; we
+-              only find points in the upper half plane with imaginary
+-              part at least this
+-            - ``max_iter`` -- maximum number of iterations used in
+-              newton iteration to refine roots to higher than 53 bits
+-              precision, if z has higher than 53 bits precision.
+-            - ``deg1`` -- (default: 500) degree used for first double
+-              precision root finding; if too small then some points
+-              will be missed.  Reasonable values are between 100 and 3000.
+-            - ``max_iter1`` -- (default: 100) max number of iterations
+-              used in refining initial roots to double precision
+-            - ``equiv_prec`` -- (default: prec//3, where prec is
+-              precision of z) used in determining Gamma_0(N)
+-              equivalence of points
++
++        - `z` -- (default: 0.1); floating point number that
++          defines element of period lattice. WARNING: Function wil
++          be dramatically slower if z has nonzero imaginary part.
++        - ``min_imag`` -- (default: 1e-4) positive real number; we
++          only find points in the upper half plane with imaginary
++          part at least this
++        - ``max_iter`` -- maximum number of iterations used in
++          newton iteration to refine roots to higher than 53 bits
++          precision, if z has higher than 53 bits precision.
++        - ``deg1`` -- (default: 500) degree used for first double
++          precision root finding; if too small then some points
++          will be missed.  Reasonable values are between 100 and 3000.
++        - ``max_iter1`` -- (default: 100) max number of iterations
++          used in refining initial roots to double precision
++        - ``equiv_prec`` -- (default: prec//3, where prec is
++          precision of z) used in determining Gamma_0(N)
++          equivalence of points
+             
+         OUTPUT:
+-            - list of inequivalent numerical points in the upper half
+-              plane that define elements of the modular curve `X_0(N)`
++
++        - list of inequivalent numerical points in the upper half
++          plane that define elements of the modular curve `X_0(N)`
+ 
+         EXAMPLES::
+ 
+@@ -1585,7 +1802,7 @@
+             sage: v = phi.points_in_h(CDF(0,1), deg1=100); v    # long time
+             [[-0.3443 + 0.0008692*I], [0.1500 + 0.007604*I]]
+             sage: phi(v[0]), phi(v[1])                          # long time
+-            (-1.02140518266e-14 + 1.0*I, 5.55111512313e-16 + 1.0*I)        
++            (...e-1... + 1.0*I, ...e-1... + 1.0*I)        
+ 
+         To higher precision::
+         
+@@ -1704,8 +1921,9 @@
+         of the same conductor.
+ 
+         INPUT:
+-            - `E`, `F` -- optimal elliptic curve over the rational
+-              numbers, or Cremona labels for elliptic curves
++
++        - `E`, `F` -- optimal elliptic curve over the rational
++          numbers, or Cremona labels for elliptic curves
+ 
+         EXAMPLES::
+ 
+@@ -1810,7 +2028,8 @@
+         Return the two curves that this Chow-Heegner point is associated to.
+ 
+         OUTPUT:
+-            2-tuple of elliptic curves over QQ
++
++        - 2-tuple of elliptic curves over QQ
+ 
+         EXAMPLES::
+ 
+@@ -1826,7 +2045,8 @@
+         Return the modular parametrization maps associated to E and F.
+ 
+         OUTPUT:
+-            2-tuple of modular parametrization maps
++
++        - 2-tuple of modular parametrization maps
+ 
+         EXAMPLES::
+         
+@@ -1898,17 +2118,18 @@
+         below).
+ 
+         INPUT:
+-            - ``search`` -- (default: 100) search through all points
+-              of the form t + sum n*g, where t is torsion, g is a
+-              generator, and abs(n) <= search.
+-            - ``eps`` -- (default: 1e-5) a small float; x and y
+-              coordinates must be at least this close
+-            - ``infinity`` -- (default: 1e12) a large float; if either
+-              x or y coordinate of numerical approximation is at least
+-              this big, then we just declare this the point at
+-              infinity, and do not do a search.
+-            - ``**kwds`` -- all other keyword arguments are passed to
+-              the ``numerical_approx`` method.
++
++        - ``search`` -- (default: 100) search through all points
++          of the form t + sum n*g, where t is torsion, g is a
++          generator, and abs(n) <= search.
++        - ``eps`` -- (default: 1e-5) a small float; x and y
++          coordinates must be at least this close
++        - ``infinity`` -- (default: 1e12) a large float; if either
++          x or y coordinate of numerical approximation is at least
++          this big, then we just declare this the point at
++          infinity, and do not do a search.
++        - ``**kwds`` -- all other keyword arguments are passed to
++          the ``numerical_approx`` method.
+         
+         EXAMPLES::
+         
+@@ -1929,10 +2150,12 @@
+         modulo torsion.
+ 
+         INPUT:
+-            - exactly the same as for the point_exact method
++
++        - exactly the same as for the point_exact method
+ 
+         OUTPUT:
+-            - Integer
++
++        - Integer
+ 
+         EXAMPLES::
+ 
+@@ -1951,29 +2174,32 @@
+                 fiber=None, number_to_stabilize=6):
+         """
+         INPUT:
+-            - ``prec`` -- (default: 53) precision of numerical
+-              computations (should be at least 53)
+-            - `z` -- (default: 0.1) base point representative
+-            - ``equiv_prec`` -- (default: prec//3) precision for
+-              checking Gamma0(N) equivalence
+-            - ``deg1`` -- (default: 500) degree used for first double
+-              precision root finding; if too small then some points
+-              will be missed.  Reasonable values are between 100 and 3000.
+-            - ``min_imag`` -- (default: 1e-4) positive real number; we
+-              only find points in the upper half plane with imaginary
+-              part at least this
+-            - ``fiber`` -- (default: None); if given as a list, then
+-              we assume that the points in this list were the output
+-              from a previous run of the compute command, and start
+-              with this list, instead of starting from scratch
+-            - ``number_to_stabilize`` -- (default: 6); if after this
+-              many attempts (using varying equivalent base points) we
+-              find no further points in fiber, then this function
+-              terminates; if not enough points were found, the output
+-              point P is None.
++
++        - ``prec`` -- (default: 53) precision of numerical
++          computations (should be at least 53)
++        - `z` -- (default: 0.1) base point representative
++        - ``equiv_prec`` -- (default: prec//3) precision for
++          checking Gamma0(N) equivalence
++        - ``deg1`` -- (default: 500) degree used for first double
++          precision root finding; if too small then some points
++          will be missed.  Reasonable values are between 100 and 3000.
++        - ``min_imag`` -- (default: 1e-4) positive real number; we
++          only find points in the upper half plane with imaginary
++          part at least this
++        - ``fiber`` -- (default: None); if given as a list, then
++          we assume that the points in this list were the output
++          from a previous run of the compute command, and start
++          with this list, instead of starting from scratch
++        - ``number_to_stabilize`` -- (default: 6); if after this
++          many attempts (using varying equivalent base points) we
++          find no further points in fiber, then this function
++          terminates; if not enough points were found, the output
++          point P is None.
+ 
+         OUTPUT:
+-          The 3-tuple with entries:
++
++        - 3-tuple with entries:
++        
+             - ``P`` -- None, or the numerically computed Chow-Heegner
+               point if we found enough points in the fiber
+             - ``fiber`` -- the inequivalent points we found in the fiber
+diff --git a/sage/schemes/elliptic_curves/chow_heegner_fast.pyx b/sage/schemes/elliptic_curves/chow_heegner_fast.pyx
+--- a/sage/schemes/elliptic_curves/chow_heegner_fast.pyx
++++ b/sage/schemes/elliptic_curves/chow_heegner_fast.pyx
+@@ -14,6 +14,20 @@
+ ##############################################################################
+ """
+ Chow-Heegner Points (fast Cython code)
++
++This module implements fast compiled helper code in Cython that is
++useful for computing Chow-Heegner points, but may be more generally
++useful for fast numerical applications.  This includes code for
++arithmetic with the Sage ComplexNumber type that avoids any object
++creation, a complex polynomial class optimized for fast evaluation
++when the degree is relatively large, and a polynomial class for
++polynomials with RDF coefficients that can compute roots and do Newton
++iteration via fast code in the GSL (much faster than PARI and numpy).
++
++AUTHORS:
++
++- William Stein (November 2011, January 2012)
++
+ """
+ 
+ ##############################################################################
+@@ -56,11 +70,13 @@
+     in absolute value for any point z with Im(z)>=ymin.
+ 
+     INPUT:
+-        - ``ymin`` -- positive real number; minimum y coordinate
+-        - ``prec`` -- positive integer (bits of precision)
++    
++    - ``ymin`` -- positive real number; minimum y coordinate
++    - ``prec`` -- positive integer (bits of precision)
+ 
+     OUTPUT:
+-        - Python int
++
++    - Python int
+ 
+     EXAMPLES::
+ 
+@@ -218,6 +234,10 @@
+ 
+     def degree(self):
+         """
++        OUTPUT:
++        
++        - integer
++            
+         EXAMPLES::
+ 
+             sage: from sage.schemes.elliptic_curves.chow_heegner_fast import ComplexPolynomial
+@@ -378,6 +398,10 @@
+ 
+     def roots(self):
+         """
++        OUTPUT:
++        
++        - list of complex double precision numbers
++        
+         EXAMPLES::
+         
+             sage: from sage.schemes.elliptic_curves.chow_heegner_fast import Polynomial_RDF_gsl
+@@ -394,13 +418,17 @@
+             sage: s = Polynomial_RDF_gsl(RDF['x']([1..400]))
+             sage: v = s.roots()
+             sage: w = s.f.roots(CDF, multiplicities=False)
+-            sage: max([abs(v[i]-w[i]) for i in range(len(v))])
+-            3...e-13
++            sage: max([abs(v[i]-w[i]) for i in range(len(v))]) < 1e-12
++            True
+         """
+         return cdf_roots_of_rdf_poly(self.f)
+ 
+     def degree(self):
+         """
++        OUTPUT:
++        
++        - integer
++            
+         EXAMPLES::
+         
+             sage: from sage.schemes.elliptic_curves.chow_heegner_fast import Polynomial_RDF_gsl
+@@ -429,7 +457,7 @@
+         The above used 7 iterations; let's restrict to at most 4 iterations::
+         
+             sage: s.newton(0, 4)
+-            [(-0.605830058052, 4, 0.00055292067107393095)]
++            [(-0.605830058052, 4, 0.00055292...)]
+ 
+         A very small max_err::
+ 
+@@ -492,9 +520,12 @@
+     eigenvalues of the companion matrix. 
+     
+     INPUT:
+-        - f -- polynomial with RDF coefficients
++
++    - f -- polynomial with RDF coefficients
++        
+     OUTPUT:
+-        - list -- all CDF roots of f
++    
++    - list -- all CDF roots of f
+ 
+     EXAMPLES::
+ 

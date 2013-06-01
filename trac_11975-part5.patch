@@ -1,0 +1,24 @@
+# HG changeset patch
+# User William Stein <wstein@gmail.com>
+# Date 1328335930 28800
+# Node ID b8084b96a567f22f080db3bd479332ded7475278
+# Parent  d9413bf506ae644cfa234ba3276d009d217a8eec
+trac 11975 (chow-heegner points): part 5
+
+diff --git a/sage/schemes/elliptic_curves/chow_heegner.py b/sage/schemes/elliptic_curves/chow_heegner.py
+--- a/sage/schemes/elliptic_curves/chow_heegner.py
++++ b/sage/schemes/elliptic_curves/chow_heegner.py
+@@ -518,13 +518,9 @@
+         return (g2i*S*g1)[1,0]%N == 0
+     elif a1 == ((2*pi*i)/3).exp():
+         return (g2i*S*T*g1)[1,0]%N == 0 or (g2i*S*T*S*T*g1)[1,0]%N == 0
+-    elif a1 == ((pi*i)/3).exp():
+-        return (g2i*T*S*g1)[1,0]%N == 0 or (g2i*T*S*T*S*g1)[1,0]%N == 0
+     return False
+ 
+ 
+-
+-
+ class X0NPoint(object):
+     """
+     An affine point on the modular curve `X_0(N)` represented as a
