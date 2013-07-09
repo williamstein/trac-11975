@@ -1,9 +1,9 @@
 # HG changeset patch
-# User William Stein <wstein@gmail.com>
-# Date 1370129365 25200
-# Node ID 0371489299c69a16b4442544febcfeca4f625b99
-# Parent  1077314f416653b28e199c382667a1f11e444bdd
-trac11975 part 1
+# User wstein@gmail.com
+# Date 1373390190 25200
+# Node ID f7bafb8ee2f5af82d07225c673c8df52bd71892f
+# Parent  0f8fd922eaed351e39f913f1317d319dcceb4c01
+trac 11975 -- Chow-Heegner points (part 1)
 
 diff --git a/module_list.py b/module_list.py
 --- a/module_list.py
@@ -46,7 +46,7 @@ diff --git a/module_list.py b/module_list.py
      ################################
      ##
      ## sage.algebras
-@@ -132,11 +132,11 @@
+@@ -131,11 +131,11 @@
                 libraries = ["csage", "flint", "gmp", "gmpxx", "m", "stdc++", "ntl"]),
  
      ################################
@@ -60,7 +60,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.calculus.var',
                sources = ['sage/calculus/var.pyx']),
  
-@@ -152,7 +152,7 @@
+@@ -151,7 +151,7 @@
  
  
      ################################
@@ -69,7 +69,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.categories
      ##
      ################################
-@@ -165,10 +165,10 @@
+@@ -164,10 +164,10 @@
  
      Extension('sage.categories.functor',
                sources = ['sage/categories/functor.pyx']),
@@ -82,7 +82,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.categories.morphism',
                sources = ['sage/categories/morphism.pyx']),
  
-@@ -176,7 +176,7 @@
+@@ -175,7 +175,7 @@
                sources = ['sage/categories/examples/semigroups_cython.pyx']),
  
      ################################
@@ -91,7 +91,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.coding
      ##
      ################################
-@@ -185,7 +185,7 @@
+@@ -184,7 +184,7 @@
                sources = ['sage/coding/binary_code.pyx']),
  
      ################################
@@ -100,7 +100,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.combinat
      ##
      ################################
-@@ -193,7 +193,7 @@
+@@ -192,7 +192,7 @@
      Extension('sage.combinat.expnums',
                sources = ['sage/combinat/expnums.pyx'],
                libraries = ['gmp']),
@@ -109,7 +109,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.combinat.matrices.dancing_links',
                sources = ['sage/combinat/matrices/dancing_links.pyx'],
                libraries = ["stdc++"],
-@@ -244,7 +244,7 @@
+@@ -243,7 +243,7 @@
                sources = ['sage/combinat/q_bernoulli.pyx']),
  
      ################################
@@ -118,7 +118,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.crypto
      ##
      ################################
-@@ -260,16 +260,16 @@
+@@ -259,16 +259,16 @@
  
      Extension('sage.ext.c_lib',
                sources = ['sage/ext/c_lib.pyx']),
@@ -139,7 +139,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.ext.multi_modular',
                sources = ['sage/ext/multi_modular.pyx'],
                extra_compile_args = ['-std=c99'],
-@@ -287,7 +287,7 @@
+@@ -286,7 +286,7 @@
      Extension('sage.finance.fractal',
                sources = ['sage/finance/fractal.pyx'],
                depends = numpy_depends),
@@ -148,7 +148,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.finance.markov_multifractal_cython',
                sources = ['sage/finance/markov_multifractal_cython.pyx']),
  
-@@ -298,14 +298,14 @@
+@@ -297,14 +297,14 @@
  
  
      ################################
@@ -171,16 +171,7 @@ diff --git a/module_list.py b/module_list.py
       ################################
       ##
       ## sage.games
-@@ -334,7 +334,7 @@
-      Extension('sage.geometry.triangulation.base',
-                sources = ['sage/geometry/triangulation/functions.cc',
-                           'sage/geometry/triangulation/data.cc',
--                          'sage/geometry/triangulation/base.pyx', 
-+                          'sage/geometry/triangulation/base.pyx',
-                           'sage/geometry/triangulation/triangulations.cc'],
-                language="c++"),
- 
-@@ -460,7 +460,7 @@
+@@ -462,7 +462,7 @@
          ################################
          ##
          ## sage.graphs.base
@@ -189,7 +180,7 @@ diff --git a/module_list.py b/module_list.py
          ################################
  
      Extension('sage.graphs.base.c_graph',
-@@ -473,7 +473,7 @@
+@@ -475,7 +475,7 @@
                sources = ['sage/graphs/base/dense_graph.pyx']),
  
      ################################
@@ -198,7 +189,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.groups
      ##
      ################################
-@@ -493,9 +493,9 @@
+@@ -495,9 +495,9 @@
          ###################################
          ##
          ## sage.groups.perm_gps.partn_ref
@@ -210,7 +201,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.groups.perm_gps.partn_ref.automorphism_group_canonical_label',
                sources = ['sage/groups/perm_gps/partn_ref/automorphism_group_canonical_label.pyx'],
                libraries = ['gmp', 'flint'],
-@@ -560,16 +560,16 @@
+@@ -553,16 +553,16 @@
                depends = flint_depends),
  
      ################################
@@ -230,7 +221,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.gsl.dwt',
                sources = ['sage/gsl/dwt.pyx'],
                libraries=['gsl',BLAS],
-@@ -579,12 +579,12 @@
+@@ -572,12 +572,12 @@
                sources = ['sage/gsl/fft.pyx'],
                libraries = ['gsl', BLAS, BLAS2],
                define_macros=[('GSL_DISABLE_DEPRECATED','1')]),
@@ -245,7 +236,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.gsl.integration',
                sources = ['sage/gsl/integration.pyx'],
                define_macros=[('GSL_DISABLE_DEPRECATED','1')],
-@@ -592,21 +592,21 @@
+@@ -585,21 +585,21 @@
  
      Extension('sage.gsl.interpolation',
                sources = ['sage/gsl/interpolation.pyx'],
@@ -271,7 +262,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.interacts
      ##
      ################################
-@@ -616,7 +616,7 @@
+@@ -609,7 +609,7 @@
                libraries = []),
  
      ################################
@@ -280,8 +271,8 @@ diff --git a/module_list.py b/module_list.py
      ## sage.libs
      ##
      ################################
-@@ -640,7 +640,7 @@
-               include_dirs = [SAGE_INC + '/FLINT'],
+@@ -631,7 +631,7 @@
+               libraries = ["csage", "flint", "gmp", "gmpxx", "m", "stdc++"],
                extra_compile_args=["-std=c99", "-D_XPG6"],
                depends = flint_depends),
 -    
@@ -289,7 +280,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.libs.fplll.fplll',
                sources = ['sage/libs/fplll/fplll.pyx'],
                libraries = ['gmp', 'mpfr', 'stdc++', 'fplll'],
-@@ -665,16 +665,16 @@
+@@ -656,16 +656,16 @@
                include_dirs = [SAGE_INC + "/libLfunction"],
                extra_compile_args=["-O3", "-ffast-math"],
                language = 'c++'),
@@ -309,7 +300,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.libs.mwrank.mwrank',
                sources = ["sage/libs/mwrank/mwrank.pyx",
                           "sage/libs/mwrank/wrap.cc"],
-@@ -686,14 +686,14 @@
+@@ -677,14 +677,14 @@
                          ],
                libraries = ["ec",
                             "ntl", "pari", "gmp", "gmpxx", "stdc++", "m"]),
@@ -327,7 +318,7 @@ diff --git a/module_list.py b/module_list.py
                language="c++",
                depends = [SAGE_INC + "/ppl.hh"]),
  
-@@ -709,7 +709,7 @@
+@@ -700,7 +700,7 @@
                include_dirs = [SAGE_INC + '/singular', SAGE_INC + '/factory'],
                depends = singular_depends,
                extra_compile_args = givaro_extra_compile_args),
@@ -336,7 +327,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.libs.singular.polynomial',
                sources = ['sage/libs/singular/polynomial.pyx'],
                libraries = singular_libs,
-@@ -773,7 +773,7 @@
+@@ -764,7 +764,7 @@
                libraries = ['gmp']),
  
          ################################
@@ -345,7 +336,7 @@ diff --git a/module_list.py b/module_list.py
          ## sage.libs.gap
          ##
          ################################
-@@ -792,7 +792,7 @@
+@@ -783,7 +783,7 @@
      #           sources = ["sage/libs/gap/type.pyx"],
      #           libraries = ['csage', 'gmp', 'gap', 'm'],
      #           include_dirs = [SAGE_INC]),
@@ -354,7 +345,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.libs.gap.libgap',
                sources = ["sage/libs/gap/libgap.pyx"],
                libraries = ['csage', 'gmp', 'gap', 'm'],
-@@ -801,9 +801,9 @@
+@@ -792,9 +792,9 @@
          ###################################
          ##
          ## sage.libs.cremona
@@ -366,7 +357,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.libs.cremona.homspace',
                sources = ["sage/libs/cremona/homspace.pyx"],
                libraries = ['ec', 'ntl', 'pari',
-@@ -841,9 +841,9 @@
+@@ -832,9 +832,9 @@
          ###################################
          ##
          ## sage.libs.ntl
@@ -378,7 +369,7 @@ diff --git a/module_list.py b/module_list.py
      # NOTE: It is *very* important (for cygwin) that csage be the
      # first library listed for all ntl extensions below.
  
-@@ -943,14 +943,14 @@
+@@ -934,14 +934,14 @@
                language='c++'),
  
      ################################
@@ -395,7 +386,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.matrix.change_ring',
                sources = ['sage/matrix/change_ring.pyx'],
                libraries=[BLAS, BLAS2, 'gmp'],
-@@ -968,7 +968,7 @@
+@@ -959,7 +959,7 @@
  
      Extension('sage.matrix.matrix2',
                sources = ['sage/matrix/matrix2.pyx']),
@@ -404,7 +395,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.matrix.matrix_complex_double_dense',
                sources = ['sage/matrix/matrix_complex_double_dense.pyx'],
                libraries=[BLAS, BLAS2],
-@@ -982,16 +982,16 @@
+@@ -973,16 +973,16 @@
  
      #Extension('sage.matrix.matrix_cyclo_sparse',
      #          sources = ['sage/matrix/matrix_cyclo_sparse.pyx']),
@@ -424,7 +415,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.matrix.matrix_double_dense',
                sources = ['sage/matrix/matrix_double_dense.pyx'],
                libraries=[BLAS, BLAS2],
-@@ -1000,7 +1000,7 @@
+@@ -991,7 +991,7 @@
  
      Extension('sage.matrix.matrix_generic_dense',
                sources = ['sage/matrix/matrix_generic_dense.pyx']),
@@ -433,7 +424,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.matrix.matrix_generic_sparse',
                sources = ['sage/matrix/matrix_generic_sparse.pyx']),
  
-@@ -1064,18 +1064,18 @@
+@@ -1055,18 +1055,18 @@
  
      #Extension('sage.matrix.matrix_pid_dense',
      #          sources = ['sage/matrix/matrix_pid_dense.pyx']),
@@ -455,7 +446,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.matrix.matrix_real_double_dense',
                sources = ['sage/matrix/matrix_real_double_dense.pyx'],
                libraries=[BLAS, BLAS2],
-@@ -1084,7 +1084,7 @@
+@@ -1075,7 +1075,7 @@
  
      Extension('sage.matrix.matrix_sparse',
                sources = ['sage/matrix/matrix_sparse.pyx']),
@@ -464,7 +455,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.matrix.matrix_symbolic_dense',
                sources = ['sage/matrix/matrix_symbolic_dense.pyx']),
  
-@@ -1100,21 +1100,21 @@
+@@ -1091,21 +1091,21 @@
  
      Extension('sage.matrix.strassen',
                sources = ['sage/matrix/strassen.pyx']),
@@ -491,7 +482,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.misc
      ##
      ################################
-@@ -1183,16 +1183,16 @@
+@@ -1174,16 +1174,16 @@
  
      Extension('sage.misc.sage_timeit_class',
                sources = ['sage/misc/sage_timeit_class.pyx']),
@@ -512,7 +503,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.misc.search',
                sources = ['sage/misc/search.pyx']),
  
-@@ -1203,7 +1203,7 @@
+@@ -1194,7 +1194,7 @@
                sources = ['sage/misc/stopgap.pyx']),
  
      ################################
@@ -521,7 +512,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.modular
      ##
      ################################
-@@ -1247,7 +1247,7 @@
+@@ -1235,7 +1235,7 @@
                libraries = ['gmp']),
  
      ################################
@@ -530,7 +521,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.modules
      ##
      ################################
-@@ -1258,10 +1258,10 @@
+@@ -1246,10 +1246,10 @@
      Extension('sage.modules.free_module_element',
                sources = ['sage/modules/free_module_element.pyx'],
                depends = numpy_depends),
@@ -543,7 +534,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.modules.vector_complex_double_dense',
                ['sage/modules/vector_complex_double_dense.pyx'],
                libraries = [BLAS, BLAS2],
-@@ -1273,7 +1273,7 @@
+@@ -1261,7 +1261,7 @@
                libraries = [BLAS, BLAS2],
                include_dirs = numpy_include_dirs,
                depends = numpy_depends),
@@ -552,16 +543,16 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.modules.vector_integer_dense',
                sources = ['sage/modules/vector_integer_dense.pyx'],
                libraries = ['gmp']),
-@@ -1287,7 +1287,7 @@
+@@ -1275,7 +1275,7 @@
                libraries = ['gmp','m4ri', 'png12', 'gd'],
-               extra_compile_args = ['-std=c99'] + m4ri_extra_compile_args,
+               extra_compile_args = m4ri_extra_compile_args,
                depends = [SAGE_INC + "/png.h", SAGE_INC + "/m4ri/m4ri.h"]),
 -    
 +
      Extension('sage.modules.vector_rational_dense',
                sources = ['sage/modules/vector_rational_dense.pyx'],
                libraries = ['gmp']),
-@@ -1303,7 +1303,7 @@
+@@ -1291,7 +1291,7 @@
      #           libraries = ['gmp']),
  
      ################################
@@ -570,8 +561,8 @@ diff --git a/module_list.py b/module_list.py
      ## sage.numerical
      ##
      ################################
-@@ -1336,7 +1336,7 @@
-               libraries=["csage", "stdc++"]),
+@@ -1330,7 +1330,7 @@
+               libraries=["csage", "stdc++", "glpk", "gmp", "z"]),
  
      ################################
 -    ## 
@@ -579,7 +570,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.plot
      ##
      ################################
-@@ -1345,21 +1345,21 @@
+@@ -1339,21 +1339,21 @@
                sources = ['sage/plot/complex_plot.pyx'],
                include_dirs = numpy_include_dirs,
                depends = numpy_depends),
@@ -605,7 +596,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.plot.plot3d.parametric_surface',
                sources = ['sage/plot/plot3d/parametric_surface.pyx']),
  
-@@ -1370,7 +1370,7 @@
+@@ -1364,7 +1364,7 @@
                sources = ['sage/plot/plot3d/transform.pyx']),
  
      ################################
@@ -614,7 +605,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.quadratic_forms
      ##
      ################################
-@@ -1383,7 +1383,7 @@
+@@ -1377,7 +1377,7 @@
                sources = ['sage/quadratic_forms/quadratic_form__evaluate.pyx']),
  
      ################################
@@ -623,46 +614,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.rings
      ##
      ################################
-@@ -1423,32 +1423,32 @@
- 
-     Extension('sage.rings.integer',
-               sources = ['sage/rings/integer.pyx'],
--              libraries=['ntl', 'pari', 'flint', 'gmp'], 
--              include_dirs = [SAGE_INC + '/FLINT'], 
-+              libraries=['ntl', 'pari', 'flint', 'gmp'],
-+              include_dirs = [SAGE_INC + '/FLINT'],
-               depends = numpy_depends + flint_depends),
- 
-     Extension('sage.rings.integer_ring',
-               sources = ['sage/rings/integer_ring.pyx'],
-               libraries=['ntl', 'gmp']),
- 
--    Extension('sage.rings.factorint', 
-+    Extension('sage.rings.factorint',
-               sources = ['sage/rings/factorint.pyx'],
-               libraries=['gmp']),
- 
-     Extension('sage.rings.fast_arith',
-               sources = ['sage/rings/fast_arith.pyx'],
--              libraries=['pari','gmp','csage']), 
-+              libraries=['pari','gmp','csage']),
- 
-     Extension('sage.rings.fraction_field_element',
-               sources = ['sage/rings/fraction_field_element.pyx']),
--    
-+
-     Extension('sage.rings.fraction_field_FpT',
-               sources = ['sage/rings/fraction_field_FpT.pyx'],
-               libraries = ["csage", "flint", "gmp", "gmpxx", "ntl", "zn_poly"],
-               extra_compile_args=["-std=c99", "-D_XPG6"],
-               include_dirs = [SAGE_INC + '/FLINT'],
-               depends = flint_depends),
--    
-+
-     Extension('sage.rings.laurent_series_ring_element',
-               sources = ['sage/rings/laurent_series_ring_element.pyx']),
- 
-@@ -1518,7 +1518,7 @@
+@@ -1510,7 +1510,7 @@
          ################################
          ##
          ## sage.rings.finite_rings
@@ -671,7 +623,7 @@ diff --git a/module_list.py b/module_list.py
          ################################
  
      Extension('sage.rings.finite_rings.finite_field_base',
-@@ -1546,7 +1546,7 @@
+@@ -1538,7 +1538,7 @@
          ################################
          ##
          ## sage.rings.function_field
@@ -680,7 +632,7 @@ diff --git a/module_list.py b/module_list.py
          ################################
  
      Extension('sage.rings.function_field.function_field_element',
-@@ -1555,7 +1555,7 @@
+@@ -1547,7 +1547,7 @@
          ################################
          ##
          ## sage.rings.number_field
@@ -689,7 +641,7 @@ diff --git a/module_list.py b/module_list.py
          ################################
  
      Extension('sage.rings.number_field.number_field_base',
-@@ -1570,87 +1570,87 @@
+@@ -1562,87 +1562,87 @@
                sources = ['sage/rings/number_field/number_field_element_quadratic.pyx'],
                libraries=['ntl', 'gmp'],
                language = 'c++'),
@@ -796,7 +748,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.rings.padics.pow_computer_ext',
                sources = ['sage/rings/padics/pow_computer_ext.pyx'],
                libraries = ["csage", "ntl", "gmp", "gmpxx", "m", "stdc++"],
-@@ -1659,17 +1659,17 @@
+@@ -1651,17 +1651,17 @@
          ################################
          ##
          ## sage.rings.polynomial
@@ -818,7 +770,7 @@ diff --git a/module_list.py b/module_list.py
  
      Extension('sage.rings.polynomial.multi_polynomial_ideal_libsingular',
                sources = ['sage/rings/polynomial/multi_polynomial_ideal_libsingular.pyx'],
-@@ -1696,7 +1696,7 @@
+@@ -1688,7 +1688,7 @@
                extra_compile_args = givaro_extra_compile_args),
  
      Extension('sage.rings.polynomial.multi_polynomial_ring_generic',
@@ -827,7 +779,7 @@ diff --git a/module_list.py b/module_list.py
  
      Extension('sage.rings.polynomial.polydict',
                sources = ['sage/rings/polynomial/polydict.pyx']),
-@@ -1780,11 +1780,15 @@
+@@ -1768,11 +1768,15 @@
                sources = ['sage/rings/polynomial/symmetric_reduction.pyx']),
  
      ################################
@@ -844,7 +796,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.schemes.elliptic_curves.descent_two_isogeny',
                sources = ['sage/schemes/elliptic_curves/descent_two_isogeny.pyx'],
                extra_compile_args=["-std=c99"],
-@@ -1809,10 +1813,10 @@
+@@ -1796,10 +1800,10 @@
  
      Extension('sage.schemes.toric.divisor_class',
                sources = ['sage/schemes/toric/divisor_class.pyx'],
@@ -857,7 +809,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.sets
      ##
      ################################
-@@ -1825,7 +1829,7 @@
+@@ -1811,7 +1815,7 @@
                depends = flint_depends),
  
      ################################
@@ -866,7 +818,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.stats
      ##
      ################################
-@@ -1835,19 +1839,19 @@
+@@ -1821,19 +1825,19 @@
  
      Extension('sage.stats.hmm.distributions',
                sources = ['sage/stats/hmm/distributions.pyx']),
@@ -889,7 +841,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.structure
      ##
      ################################
-@@ -1891,7 +1895,7 @@
+@@ -1877,7 +1881,7 @@
  
      Extension('sage.structure.parent_base',
                sources = ['sage/structure/parent_base.pyx']),
@@ -898,7 +850,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.structure.parent_gens',
                sources = ['sage/structure/parent_gens.pyx']),
  
-@@ -1905,7 +1909,7 @@
+@@ -1891,7 +1895,7 @@
                sources = ['sage/structure/wrapper_parent.pyx']),
  
      ################################
@@ -907,7 +859,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.symbolic
      ##
      ################################
-@@ -1920,13 +1924,13 @@
+@@ -1906,13 +1910,13 @@
                language = 'c++',
                depends = ginac_depends,
                libraries = ["pynac", "gmp"]),
@@ -923,7 +875,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.symbolic.function',
                sources = ['sage/symbolic/function.pyx'],
                language = 'c++',
-@@ -1937,8 +1941,8 @@
+@@ -1923,8 +1927,8 @@
                sources = ['sage/symbolic/pynac.pyx'],
                language = 'c++',
                depends = ginac_depends,
@@ -934,7 +886,7 @@ diff --git a/module_list.py b/module_list.py
      Extension('sage.symbolic.ring',
                sources = ['sage/symbolic/ring.pyx'],
                language = 'c++',
-@@ -1946,7 +1950,7 @@
+@@ -1932,7 +1936,7 @@
                libraries = ["pynac", "gmp"]),
  
      ################################
@@ -943,7 +895,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.tests
      ##
      ################################
-@@ -1957,12 +1961,12 @@
+@@ -1943,12 +1947,12 @@
                sources = ['sage/tests/stl_vector.pyx'],
                libraries = ['gmp'],
                language = 'c++'),
@@ -959,16 +911,7 @@ diff --git a/module_list.py b/module_list.py
      ## sage.sat
      ##
      ################################
-@@ -1987,7 +1991,7 @@
-        ])
- 
- 
--if (os.path.isfile(SAGE_INC + "gurobi_c.h") and                                                                                                                                                                                   
-+if (os.path.isfile(SAGE_INC + "gurobi_c.h") and
-     os.path.isfile(SAGE_LOCAL + "/lib/libgurobi.so")):
-     ext_modules.append(
-         Extension("sage.numerical.backends.gurobi_backend",
-@@ -2008,19 +2012,19 @@
+@@ -1994,19 +1998,19 @@
          )
  
  
